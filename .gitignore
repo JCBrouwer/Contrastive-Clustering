@@ -1,0 +1,5 @@
+.vscode/
+modelzoo/*
+!modelzoo/.gitkeep
+**.pyc
+**pycache/

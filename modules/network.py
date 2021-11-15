@@ -1,5 +1,5 @@
-import torch.nn as nn
 import torch
+import torch.nn as nn
 from torch.nn.functional import normalize
 
 
@@ -18,7 +18,7 @@ class Network(nn.Module):
             nn.Linear(self.resnet.rep_dim, self.resnet.rep_dim),
             nn.ReLU(),
             nn.Linear(self.resnet.rep_dim, self.cluster_num),
-            nn.Softmax(dim=1)
+            nn.Softmax(dim=1),
         )
 
     def forward(self, x_i, x_j):

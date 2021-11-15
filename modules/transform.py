@@ -1,6 +1,6 @@
-import torchvision
 import cv2
 import numpy as np
+import torchvision
 
 
 class GaussianBlur:
@@ -23,15 +23,17 @@ class Transforms:
         self.train_transform = [
             torchvision.transforms.RandomResizedCrop(size=size),
             torchvision.transforms.RandomHorizontalFlip(),
-            torchvision.transforms.RandomApply([torchvision.transforms.ColorJitter(0.8 * s, 0.8 * s, 0.8 * s, 0.2 * s)],
-                                               p=0.8),
+            torchvision.transforms.RandomApply(
+                [torchvision.transforms.ColorJitter(0.8 * s, 0.8 * s, 0.8 * s, 0.2 * s)], p=0.8
+            ),
             torchvision.transforms.RandomGrayscale(p=0.2),
         ]
         if blur:
             self.train_transform.append(GaussianBlur(kernel_size=23))
         self.train_transform.append(torchvision.transforms.ToTensor())
         self.test_transform = [
-            torchvision.transforms.Resize(size=(size, size)),
+            torchvision.transforms.Resize(size),
+            torchvision.transforms.CenterCrop(size),
             torchvision.transforms.ToTensor(),
         ]
         if mean and std:
