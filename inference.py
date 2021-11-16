@@ -1,68 +1,55 @@
-from glob import glob
 from pathlib import Path
 
 import numpy as np
 import torch
 import torchvision
 from numpy import sqrt
-from PIL import Image
-from torch.utils import data
 from tqdm import tqdm
 
 from args import get_args
-from modules import network, resnet, transform
-
-
-class Images(data.Dataset):
-    def __init__(self, root, transform):
-        extensions = [".jpg", ".jpeg", ".png", ".ppm", ".bmp", ".pgm", ".tif", ".tiff", ".webp"]
-        self.imgs = sum([glob(root + "/*" + ext) for ext in extensions], [])
-        self.transform = transform
-
-    def __len__(self):
-        return len(self.imgs)
-
-    def __getitem__(self, idx):
-        file = self.imgs[idx]
-        return file, self.transform(Image.open(file).convert("RGB"))
-
+from data import DataPrefetcher, Images, Transforms
+from extractors import get_feature_network
+from projector import Projector
 
 if __name__ == "__main__":
-    args = get_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    torch.backends.cudnn.benchmark = True
+    torch.multiprocessing.set_start_method("spawn")
+    args = get_args()
 
-    dataset = Images(
-        root=args.input_dir,
-        transform=transform.Transforms(size=args.image_size).test_transform,
-    )
-    class_num = args.n_clusters
-
-    data_loader = data.DataLoader(
+    transform = Transforms(args.image_size).test_transform
+    dataset = Images(root=args.input_dir, transform=transform)
+    data_loader = torch.utils.data.DataLoader(
         dataset,
         batch_size=args.batch_size,
         shuffle=False,
         drop_last=False,
         num_workers=args.workers,
     )
+    data_prefetcher = DataPrefetcher(data_loader)
 
-    res = resnet.get_resnet(args.resnet)
-    model = network.Network(res, args.feature_dim, class_num)
-    model_fp = args.model_path
-    model.load_state_dict(torch.load(model_fp, map_location=device.type)["net"])
-    model.to(device)
+    feature_extractor = get_feature_network(args.feature_net).eval().float().to(device)
 
-    with torch.inference_mode():
-        model.eval()
+    class_num = args.n_clusters
+    model = Projector(feature_extractor.rep_dim, args.feature_dim, class_num).eval().to(device)
+    model.load_state_dict(torch.load(args.model_path, map_location=device.type)["net"])
+
+    with torch.inference_mode(), tqdm(total=len(dataset), smoothing=0) as pbar:
         labels, files, imgs = [], [], []
-        for step, (f, x) in enumerate(tqdm(data_loader)):
-            x = x.to(device)
-            c = model.forward_cluster(x)
+
+        f, x = data_prefetcher.next()
+        while x is not None:
+            h = feature_extractor(x)
+            c = model.forward_cluster(h)
+
+            imgs.append(x.cpu())
             labels.append(c.cpu())
             files.append(f)
-            imgs.append(x.cpu())
-    labels = torch.cat(labels)
-    files = np.concatenate(files)
-    imgs = torch.cat(imgs)
+
+            pbar.update(len(x))
+            f, x = data_prefetcher.next()
+
+        labels, files, imgs = torch.cat(labels), np.concatenate(files), torch.cat(imgs)
 
     print("Number of clusters found:", len(np.unique(labels)))
     sizes = np.array([(labels == l).sum() for l in range(len(np.unique(labels)))])

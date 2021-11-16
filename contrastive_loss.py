@@ -5,11 +5,10 @@ import torch.nn as nn
 
 
 class InstanceLoss(nn.Module):
-    def __init__(self, batch_size, temperature, device):
+    def __init__(self, batch_size, temperature):
         super(InstanceLoss, self).__init__()
         self.batch_size = batch_size
         self.temperature = temperature
-        self.device = device
 
         self.mask = self.mask_correlated_samples(batch_size)
         self.criterion = nn.CrossEntropyLoss(reduction="sum")
@@ -44,11 +43,10 @@ class InstanceLoss(nn.Module):
 
 
 class ClusterLoss(nn.Module):
-    def __init__(self, class_num, temperature, device):
+    def __init__(self, class_num, temperature):
         super(ClusterLoss, self).__init__()
         self.class_num = class_num
         self.temperature = temperature
-        self.device = device
 
         self.mask = self.mask_correlated_clusters(class_num)
         self.criterion = nn.CrossEntropyLoss(reduction="sum")

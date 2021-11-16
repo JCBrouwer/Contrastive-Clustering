@@ -1,7 +1,11 @@
 .vscode/
-modelzoo/*
-!modelzoo/.gitkeep
+
 **.pyc
 **pycache/
+
+modelzoo/*
+!modelzoo/.gitkeep
 clusters/*
 !clusters/.gitkeep
+cache/*
+!cache/.gitkeep

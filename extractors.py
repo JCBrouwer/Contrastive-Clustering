@@ -1,6 +1,46 @@
+import clip
 import torch
 import torch.nn as nn
 from torchvision.models.resnet import BasicBlock, Bottleneck, conv1x1
+from torchvision.transforms.functional import normalize, resize
+
+
+def get_feature_network(name):
+    if "ResNet" in name:
+        return get_resnet(name)
+    return CLIP(name.replace("CLIP-", ""))
+
+
+class CLIP(nn.Module):
+    def __init__(self, name):
+        super().__init__()
+        self.model = clip.load(name, jit=False)[0].visual
+        self.input_size = self.model.input_resolution
+        self.rep_dim = self.model.output_dim
+
+    def forward(self, x):
+        return self.model(
+            normalize(
+                resize(x, (self.input_size, self.input_size)),
+                (0.48145466, 0.4578275, 0.40821073),
+                (0.26862954, 0.26130258, 0.27577711),
+            )
+        )
+
+
+def get_resnet(name):
+    resnet18 = ResNet(block=BasicBlock, layers=[2, 2, 2, 2])
+    resnet34 = ResNet(block=BasicBlock, layers=[3, 4, 6, 3])
+    resnet50 = ResNet(block=Bottleneck, layers=[3, 4, 6, 3])
+
+    resnets = {
+        "ResNet18": resnet18,
+        "ResNet34": resnet34,
+        "ResNet50": resnet50,
+    }
+    if name not in resnets.keys():
+        raise KeyError(f"{name} is not a valid ResNet version")
+    return resnets[name]
 
 
 class ResNet(nn.Module):
@@ -8,14 +48,13 @@ class ResNet(nn.Module):
         self,
         block,
         layers,
-        num_classes=1000,
         zero_init_residual=False,
         groups=1,
         width_per_group=64,
         replace_stride_with_dilation=None,
         norm_layer=None,
     ):
-        super(ResNet, self).__init__()
+        super().__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
@@ -114,18 +153,3 @@ class ResNet(nn.Module):
 
     def forward(self, x):
         return self._forward_impl(x)
-
-
-def get_resnet(name):
-    resnet18 = ResNet(block=BasicBlock, layers=[2, 2, 2, 2])
-    resnet34 = ResNet(block=BasicBlock, layers=[3, 4, 6, 3])
-    resnet50 = ResNet(block=Bottleneck, layers=[3, 4, 6, 3])
-
-    resnets = {
-        "ResNet18": resnet18,
-        "ResNet34": resnet34,
-        "ResNet50": resnet50,
-    }
-    if name not in resnets.keys():
-        raise KeyError(f"{name} is not a valid ResNet version")
-    return resnets[name]
