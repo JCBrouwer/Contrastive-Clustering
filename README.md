@@ -7,7 +7,7 @@ A revised version of the official repository that makes it easy to run on your o
 ```bash
 conda create -n cc python=3.9 cudatoolkit=11.3 cudnn pytorch==1.10.0 torchvision==0.11 -c nvidia -c pytorch -c conda-forge
 conda activate cc
-pip install scikit-learn munkres numpy opencv-python
+pip install scikit-learn munkres numpy opencv-python tqdm
 ```
 
 ## Usage

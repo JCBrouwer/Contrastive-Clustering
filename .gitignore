@@ -3,3 +3,5 @@ modelzoo/*
 !modelzoo/.gitkeep
 **.pyc
 **pycache/
+clusters/*
+!clusters/.gitkeep
